@@ -228,13 +228,17 @@ async function syncNow() {
 
         const data = await res.json();
         localStorage.setItem(GIST_ID_KEY, data.id);
-        document.getElementById('gist-id-display').innerText = `Gist ID: ${data.id}`;
-        updateSyncStatus('success');
-    } catch(e) {
-        updateSyncStatus('error', e.message);
-    } finally {
+        const gistEl = document.getElementById('gist-id-display');
+        if (gistEl) gistEl.innerText = `Gist ID: ${data.id}`;
         isSyncing = false;
+        updateSyncStatus('success');
+        return;
+    } catch(e) {
+        isSyncing = false;
+        updateSyncStatus('error', e.message);
+        return;
     }
+    isSyncing = false;
 }
 
 async function pullFromGist() {
