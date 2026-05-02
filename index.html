@@ -35,8 +35,8 @@
         .sync-setup.open { display: block; }
         .sync-setup p { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px; }
         .sync-setup a { color: #3b82f6; }
-        .token-row { display: flex; gap: 8px; margin-top: 8px; }
-        .token-input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; font-family: monospace; }
+        .token-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .token-input { flex: 1; min-width: 180px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; font-family: monospace; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .dot-green { background: #10b981; } .dot-yellow { background: #f59e0b; } .dot-red { background: #ef4444; }
 
@@ -98,7 +98,7 @@
     <div class="sync-banner">
         <div class="sync-top">
             <div class="sync-info">
-                <strong>Cloud Sync</strong> — works across all your devices
+                <strong>Cloud Sync</strong> — Seamless across desktop & mobile
                 <div class="sync-status" id="sync-status-text">
                     <span class="status-dot dot-yellow"></span>Not configured
                 </div>
@@ -106,23 +106,23 @@
             <div class="sync-btns">
                 <button class="btn-utility" id="sync-btn" onclick="syncNow()" style="display:none">☁️ Push</button>
                 <button class="btn-utility" id="pull-btn" onclick="pullFromGist()" style="display:none">📥 Pull Latest</button>
-                <button class="btn-utility" onclick="toggleSetup()">⚙️ Setup</button>
-                <button class="btn-utility" onclick="exportData()">📤 Export</button>
+                <button class="btn-utility" onclick="toggleSetup()">⚙️ Setup Sync</button>
+                <button class="btn-utility" onclick="exportData()">📤 Backup</button>
             </div>
         </div>
         <div class="sync-setup" id="sync-setup-panel">
             <p>
-                Sync uses a <strong>GitHub Gist</strong> as your free cloud database.<br>
-                1. Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
-                2. Give it a name (e.g. "mastery-tracker"), tick <strong>gist</strong> scope, click Generate.<br>
-                3. Paste the token below. It's stored only on this device.
+                <strong>Cross-Device Setup Guide:</strong><br>
+                • On <strong>Device 1:</strong> Enter Token, leave Gist ID empty, click <strong>Save</strong>. Copy the new Gist ID.<br>
+                • On <strong>Device 2:</strong> Enter Token, paste that same Gist ID, click <strong>Save</strong>.
             </p>
             <div class="token-row">
-                <input type="password" id="gh-token-input" class="token-input" placeholder="ghp_xxxxxxxxxxxx">
-                <button class="btn-add-res" onclick="saveToken()">Save Token</button>
-                <button class="btn-utility" onclick="clearToken()" style="color:#ef4444">Clear</button>
+                <input type="password" id="gh-token-input" class="token-input" placeholder="Personal Access Token (ghp_...)">
+                <input type="text" id="gh-gist-input" class="token-input" placeholder="Gist ID (Optional)">
+                <button class="btn-add-res" onclick="saveCredentials()">Save Credentials</button>
+                <button class="btn-utility" onclick="clearCredentials()" style="color:#ef4444">Disconnect</button>
             </div>
-            <p id="gist-id-display" style="margin-top:8px; font-family:monospace; font-size:0.75rem;"></p>
+            <p id="gist-id-display" style="margin-top:8px; font-family:monospace; font-size:0.75rem; font-weight:700; color:var(--accent)"></p>
         </div>
     </div>
 
@@ -155,28 +155,42 @@ const savedTheme = localStorage.getItem('theme-pref') || 'dark';
 document.body.setAttribute('data-theme', savedTheme);
 if (document.getElementById('theme-icon')) document.getElementById('theme-icon').innerText = savedTheme === 'dark' ? '🌙' : '☀️';
 
-// --- LOCAL SAVE ---
+// --- SAVE LOCAL ---
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(skills)); }
 
-// --- GITHUB GIST SYNC ---
+// --- DATA SYNC BACKEND (GitHub REST API via Bearer Header) ---
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function getGistId() { return localStorage.getItem(GIST_ID_KEY); }
 
-function saveToken() {
+function saveCredentials() {
     const t = document.getElementById('gh-token-input').value.trim();
-    if (!t) return alert('Please enter a token.');
+    const g = document.getElementById('gh-gist-input').value.trim();
+    
+    if (!t) return alert('Token is required.');
+    
     localStorage.setItem(TOKEN_KEY, t);
-    updateSyncStatus('configured');
+    
+    if (g) {
+        localStorage.setItem(GIST_ID_KEY, g);
+        document.getElementById('gist-id-display').innerText = `Linked to Gist ID: ${g}`;
+        updateSyncStatus('configured');
+        pullFromGist(); // Auto-load cloud data immediately
+    } else {
+        syncNow(); // Creates a Gist instantly
+    }
+
     document.getElementById('gh-token-input').value = '';
+    document.getElementById('gh-gist-input').value = '';
     document.getElementById('sync-btn').style.display = 'flex';
-    alert('Token saved! Click "Sync Now" to push your data to the cloud.');
+    document.getElementById('pull-btn').style.display = 'flex';
 }
 
-function clearToken() {
-    if (!confirm('Remove token & gist link from this device?')) return;
+function clearCredentials() {
+    if (!confirm('Disconnect cloud backup from this device?')) return;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(GIST_ID_KEY);
     document.getElementById('sync-btn').style.display = 'none';
+    document.getElementById('pull-btn').style.display = 'none';
     updateSyncStatus('not-configured');
     document.getElementById('gist-id-display').innerText = '';
 }
@@ -185,39 +199,41 @@ function updateSyncStatus(state, msg) {
     const el = document.getElementById('sync-status-text');
     if (!el) return;
     const states = {
-        'not-configured': `<span class="status-dot dot-yellow"></span>Not configured`,
-        'configured':     `<span class="status-dot dot-yellow"></span>Token saved — not yet synced`,
+        'not-configured': `<span class="status-dot dot-yellow"></span>Unlinked`,
+        'configured':     `<span class="status-dot dot-yellow"></span>Token saved, click Pull or Push`,
         'syncing':        `<span class="spinner"></span>&nbsp;Syncing...`,
-        'success':        `<span class="status-dot dot-green"></span>Synced ${new Date().toLocaleTimeString()}`,
-        'error':          `<span class="status-dot dot-red"></span>Sync failed — ${msg || 'check token & permissions'}`
+        'success':        `<span class="status-dot dot-green"></span>Updated ${new Date().toLocaleTimeString()}`,
+        'error':          `<span class="status-dot dot-red"></span>Error: ${msg || 'Verify token & permissions'}`
     };
     el.innerHTML = states[state] || states['not-configured'];
 }
 
 async function syncNow() {
     const token = getToken();
+    const gistId = getGistId();
     if (!token) { toggleSetup(); return; }
     if (isSyncing) return;
     isSyncing = true;
     updateSyncStatus('syncing');
 
     try {
-        const gistId = getGistId();
-        const payload = { description: 'Mastery Tracker Data', public: false, files: { 'mastery-tracker-data.json': { content: JSON.stringify(skills, null, 2) } } };
+        const payload = { 
+            description: 'Mastery Tracker Cloud Sync', 
+            public: false, 
+            files: { 'mastery-tracker-data.json': { content: JSON.stringify(skills, null, 2) } } 
+        };
         
         let res;
         if (gistId) {
-            // Update existing gist
             res = await fetch(`https://api.github.com/gists/${gistId}`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
         } else {
-            // Create new gist
             res = await fetch('https://api.github.com/gists', {
                 method: 'POST',
-                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
         }
@@ -230,16 +246,14 @@ async function syncNow() {
         const data = await res.json();
         localStorage.setItem(GIST_ID_KEY, data.id);
         const gistEl = document.getElementById('gist-id-display');
-        if (gistEl) gistEl.innerText = `Gist ID: ${data.id}`;
+        if (gistEl) gistEl.innerText = `Linked to Gist ID: ${data.id}`;
+        
         isSyncing = false;
         updateSyncStatus('success');
-        return;
     } catch(e) {
         isSyncing = false;
         updateSyncStatus('error', e.message);
-        return;
     }
-    isSyncing = false;
 }
 
 async function pullFromGist() {
@@ -250,34 +264,34 @@ async function pullFromGist() {
     updateSyncStatus('syncing');
     try {
         const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-            headers: { 'Authorization': `token ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(res.statusText);
         const data = await res.json();
         const content = data.files['mastery-tracker-data.json']?.content;
+        
         if (content) {
             const parsed = JSON.parse(content);
             if (Array.isArray(parsed)) {
                 skills = parsed;
                 save();
                 updateSyncStatus('success');
-                setTimeout(() => render(), 100);
+                render();
             }
         } else {
-            updateSyncStatus('error', 'No data found in Gist');
+            updateSyncStatus('error', 'Sync data file empty');
         }
     } catch(e) {
         updateSyncStatus('error', e.message);
     }
 }
 
-// Auto-sync debounce
 let syncTimer = null;
 function saveAndSync() {
     save();
     if (getToken()) {
         clearTimeout(syncTimer);
-        syncTimer = setTimeout(syncNow, 2000); // sync 2s after last change
+        syncTimer = setTimeout(syncNow, 1500); // 1.5s delay to save calls
     }
 }
 
@@ -296,7 +310,6 @@ function toggleSetup() {
     panel.classList.toggle('open');
 }
 
-// Init sync UI
 function initSyncUI() {
     if (getToken()) {
         document.getElementById('sync-btn').style.display = 'flex';
@@ -304,7 +317,7 @@ function initSyncUI() {
         const gistId = getGistId();
         if (gistId) {
             const el = document.getElementById('gist-id-display');
-            if (el) el.innerText = `Gist ID: ${gistId}`;
+            if (el) el.innerText = `Linked to Gist ID: ${gistId}`;
             pullFromGist();
         } else {
             updateSyncStatus('configured');
@@ -312,7 +325,7 @@ function initSyncUI() {
     }
 }
 
-// --- RENDER ---
+// --- RENDERING VIEWS ---
 function render() {
     const app = document.getElementById('app');
     const shown = filter === 'All' ? skills : skills.filter(s => s.cat === filter);
@@ -350,7 +363,7 @@ function render() {
                         </div>
                         <div class="skill-info">
                             <div class="skill-name">${s.name}</div>
-                            <div><span class="tag">${s.cat}</span><span class="tag">${s.priority}</span></div>
+                            <div><span class="tag">${s.cat}</span><span class="tag">${s.priority} Priority</span></div>
                         </div>
                         <div onclick="event.stopPropagation()">
                             <button class="btn-action" onclick="adj(${s.id},-10)">−</button>
