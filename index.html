@@ -104,7 +104,8 @@
                 </div>
             </div>
             <div class="sync-btns">
-                <button class="btn-utility" id="sync-btn" onclick="syncNow()" style="display:none">☁️ Sync Now</button>
+                <button class="btn-utility" id="sync-btn" onclick="syncNow()" style="display:none">☁️ Push</button>
+                <button class="btn-utility" id="pull-btn" onclick="pullFromGist()" style="display:none">📥 Pull Latest</button>
                 <button class="btn-utility" onclick="toggleSetup()">⚙️ Setup</button>
                 <button class="btn-utility" onclick="exportData()">📤 Export</button>
             </div>
@@ -297,10 +298,12 @@ function toggleSetup() {
 function initSyncUI() {
     if (getToken()) {
         document.getElementById('sync-btn').style.display = 'flex';
+        document.getElementById('pull-btn').style.display = 'flex';
         const gistId = getGistId();
         if (gistId) {
-            document.getElementById('gist-id-display').innerText = `Gist ID: ${gistId}`;
-            pullFromGist(); // pull latest on load
+            const el = document.getElementById('gist-id-display');
+            if (el) el.innerText = `Gist ID: ${gistId}`;
+            pullFromGist();
         } else {
             updateSyncStatus('configured');
         }
