@@ -260,9 +260,11 @@ async function pullFromGist() {
             if (Array.isArray(parsed)) {
                 skills = parsed;
                 save();
-                render();
                 updateSyncStatus('success');
+                setTimeout(() => render(), 100);
             }
+        } else {
+            updateSyncStatus('error', 'No data found in Gist');
         }
     } catch(e) {
         updateSyncStatus('error', e.message);
