@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mastery Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f8fafc; --bg-card: #ffffff; --text-main: #0f172a;
+            --text-dim: #64748b; --border: #e2e8f0; --accent: #10b981;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.05); --input-bg: #ffffff;
+        }
+        [data-theme="dark"] {
+            --bg-main: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc;
+            --text-dim: #94a3b8; --border: #334155;
+            --shadow: 0 10px 15px -3px rgba(0,0,0,0.3); --input-bg: #0f172a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.2s, border-color 0.2s; }
+        body { background-color: var(--bg-main); color: var(--text-main); font-family: 'Inter', sans-serif; padding: 2rem 1rem; min-height: 100vh; }
+        .container { max-width: 850px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        header h1 { font-size: 1.8rem; font-weight: 800; background: linear-gradient(to right, var(--accent), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-utility { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 0.85rem; font-weight: 600; box-shadow: var(--shadow); display: flex; align-items: center; gap: 6px; }
+
+        /* Sync Banner */
+        .sync-banner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
+        .sync-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .sync-info { font-size: 0.85rem; color: var(--text-dim); }
+        .sync-status { font-size: 0.75rem; margin-top: 4px; font-weight: 600; }
+        .sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .sync-setup { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: none; }
+        .sync-setup.open { display: block; }
+        .sync-setup p { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px; }
+        .sync-setup a { color: #3b82f6; }
+        .token-row { display: flex; gap: 8px; margin-top: 8px; }
+        .token-input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; font-family: monospace; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot-green { background: #10b981; } .dot-yellow { background: #f59e0b; } .dot-red { background: #ef4444; }
+
+        /* Stats */
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; text-align: center; box-shadow: var(--shadow); }
+        .stat-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+        .bar-wrap { background: var(--bg-card); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 2rem; }
+        .bar-track { height: 10px; background: var(--bg-main); border-radius: 10px; overflow: hidden; margin-top: 10px; }
+        .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #3b82f6); transition: width 0.8s ease; }
+
+        /* Filter Pills */
+        .cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2rem; }
+        .cat-pill { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); }
+        .cat-pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+        /* Topic Cards */
+        .skill-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 12px; overflow: hidden; box-shadow: var(--shadow); }
+        .skill-main { display: flex; align-items: center; gap: 1.2rem; padding: 1.25rem; cursor: pointer; }
+        .ring-wrap { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
+        .ring-wrap svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+        .ring-bg { fill: none; stroke: var(--bg-main); stroke-width: 4; }
+        .ring-fg { fill: none; stroke-width: 4; stroke-linecap: round; }
+        .ring-pct { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 0.7rem; font-weight: 700; }
+        .skill-info { flex: 1; min-width: 0; }
+        .skill-name { font-size: 1.05rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tag { font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; background: var(--bg-main); border: 1px solid var(--border); margin-right: 4px; color: var(--text-dim); }
+        .btn-action { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-main); cursor: pointer; }
+        .skill-detail { padding: 1.5rem; background: var(--bg-main); border-top: 1px solid var(--border); }
+        .detail-label { font-size: 0.75rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .notes-area { width: 100%; background: var(--input-bg); border: 1px solid var(--border); color: var(--text-main); padding: 0.8rem; border-radius: 10px; margin-bottom: 1.5rem; font-family: inherit; }
+        .resource-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 8px 12px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border); }
+        .resource-link { font-size: 0.9rem; color: #3b82f6; text-decoration: none; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80%; }
+        .add-res-box { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .res-input { flex: 1; min-width: 120px; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; }
+        .btn-add-res { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: var(--bg-card); padding: 2rem; border-radius: 20px; width: 90%; max-width: 450px; }
+        .field { margin-bottom: 1rem; }
+        .field label { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+        .field input, .field select, .field textarea { width: 100%; padding: 0.8rem; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-main); }
+        .modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 1.5rem; }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body data-theme="dark">
+<div class="container">
+    <header>
+        <h1>Mastery Tracker</h1>
+        <div class="header-actions">
+            <button id="theme-toggle" class="btn-utility" onclick="toggleTheme()"><span id="theme-icon">🌙</span> Mode</button>
+        </div>
+    </header>
+
+    <div class="sync-banner">
+        <div class="sync-top">
+            <div class="sync-info">
+                <strong>Cloud Sync</strong> — works across all your devices
+                <div class="sync-status" id="sync-status-text">
+                    <span class="status-dot dot-yellow"></span>Not configured
+                </div>
+            </div>
+            <div class="sync-btns">
+                <button class="btn-utility" id="sync-btn" onclick="syncNow()" style="display:none">☁️ Push</button>
+                <button class="btn-utility" id="pull-btn" onclick="pullFromGist()" style="display:none">📥 Pull Latest</button>
+                <button class="btn-utility" onclick="toggleSetup()">⚙️ Setup</button>
+                <button class="btn-utility" onclick="exportData()">📤 Export</button>
+            </div>
+        </div>
+        <div class="sync-setup" id="sync-setup-panel">
+            <p>
+                Sync uses a <strong>GitHub Gist</strong> as your free cloud database.<br>
+                1. Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
+                2. Give it a name (e.g. "mastery-tracker"), tick <strong>gist</strong> scope, click Generate.<br>
+                3. Paste the token below. It's stored only on this device.
+            </p>
+            <div class="token-row">
+                <input type="password" id="gh-token-input" class="token-input" placeholder="ghp_xxxxxxxxxxxx">
+                <button class="btn-add-res" onclick="saveToken()">Save Token</button>
+                <button class="btn-utility" onclick="clearToken()" style="color:#ef4444">Clear</button>
+            </div>
+            <p id="gist-id-display" style="margin-top:8px; font-family:monospace; font-size:0.75rem;"></p>
+        </div>
+    </div>
+
+    <div id="app"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'mastery_tracker_final';
+const TOKEN_KEY = 'gh_sync_token';
+const GIST_ID_KEY = 'gh_gist_id';
+const CATS = ['All','DSA','System Design','Languages','Frameworks','CS Fundamentals','Behavioral'];
+const CAT_COLORS = { 'DSA':'#10b981','System Design':'#3b82f6','Languages':'#f59e0b','Frameworks':'#ec4899','CS Fundamentals':'#8b5cf6','Behavioral':'#f97316' };
+
+let skills = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
+    {id:1, name:'Arrays & Hashing', cat:'DSA', pct:75, priority:'High', notes:'Master sliding window.', resources:[{label:'NeetCode',url:'https://neetcode.io'}]}
+];
+let filter = 'All';
+let expanded = new Set();
+let showModal = false;
+let isSyncing = false;
+
+// --- THEME ---
+function toggleTheme() {
+    const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', next);
+    document.getElementById('theme-icon').innerText = next === 'dark' ? '🌙' : '☀️';
+    localStorage.setItem('theme-pref', next);
+}
+const savedTheme = localStorage.getItem('theme-pref') || 'dark';
+document.body.setAttribute('data-theme', savedTheme);
+if (document.getElementById('theme-icon')) document.getElementById('theme-icon').innerText = savedTheme === 'dark' ? '🌙' : '☀️';
+
+// --- LOCAL SAVE ---
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(skills)); }
+
+// --- GITHUB GIST SYNC ---
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function getGistId() { return localStorage.getItem(GIST_ID_KEY); }
+
+function saveToken() {
+    const t = document.getElementById('gh-token-input').value.trim();
+    if (!t) return alert('Please enter a token.');
+    localStorage.setItem(TOKEN_KEY, t);
+    updateSyncStatus('configured');
+    document.getElementById('gh-token-input').value = '';
+    document.getElementById('sync-btn').style.display = 'flex';
+    alert('Token saved! Click "Sync Now" to push your data to the cloud.');
+}
+
+function clearToken() {
+    if (!confirm('Remove token & gist link from this device?')) return;
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(GIST_ID_KEY);
+    document.getElementById('sync-btn').style.display = 'none';
+    updateSyncStatus('not-configured');
+    document.getElementById('gist-id-display').innerText = '';
+}
+
+function updateSyncStatus(state, msg) {
+    const el = document.getElementById('sync-status-text');
+    if (!el) return;
+    const states = {
+        'not-configured': `<span class="status-dot dot-yellow"></span>Not configured`,
+        'configured':     `<span class="status-dot dot-yellow"></span>Token saved — not yet synced`,
+        'syncing':        `<span class="spinner"></span>&nbsp;Syncing...`,
+        'success':        `<span class="status-dot dot-green"></span>Synced ${new Date().toLocaleTimeString()}`,
+        'error':          `<span class="status-dot dot-red"></span>Sync failed — ${msg || 'check token & permissions'}`
+    };
+    el.innerHTML = states[state] || states['not-configured'];
+}
+
+async function syncNow() {
+    const token = getToken();
+    if (!token) { toggleSetup(); return; }
+    if (isSyncing) return;
+    isSyncing = true;
+    updateSyncStatus('syncing');
+
+    try {
+        const gistId = getGistId();
+        const payload = { description: 'Mastery Tracker Data', public: false, files: { 'mastery-tracker-data.json': { content: JSON.stringify(skills, null, 2) } } };
+        
+        let res;
+        if (gistId) {
+            // Update existing gist
+            res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            // Create new gist
+            res = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || res.statusText);
+        }
+
+        const data = await res.json();
+        localStorage.setItem(GIST_ID_KEY, data.id);
+        const gistEl = document.getElementById('gist-id-display');
+        if (gistEl) gistEl.innerText = `Gist ID: ${data.id}`;
+        isSyncing = false;
+        updateSyncStatus('success');
+        return;
+    } catch(e) {
+        isSyncing = false;
+        updateSyncStatus('error', e.message);
+        return;
+    }
+    isSyncing = false;
+}
+
+async function pullFromGist() {
+    const token = getToken();
+    const gistId = getGistId();
+    if (!token || !gistId) return;
+
+    updateSyncStatus('syncing');
+    try {
+        const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: { 'Authorization': `token ${token}` }
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        const content = data.files['mastery-tracker-data.json']?.content;
+        if (content) {
+            const parsed = JSON.parse(content);
+            if (Array.isArray(parsed)) {
+                skills = parsed;
+                save();
+                render();
+                updateSyncStatus('success');
+            }
+        }
+    } catch(e) {
+        updateSyncStatus('error', e.message);
+    }
+}
+
+// Auto-sync debounce
+let syncTimer = null;
+function saveAndSync() {
+    save();
+    if (getToken()) {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(syncNow, 2000); // sync 2s after last change
+    }
+}
+
+function exportData() {
+    const blob = new Blob([JSON.stringify(skills, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mastery-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function toggleSetup() {
+    const panel = document.getElementById('sync-setup-panel');
+    panel.classList.toggle('open');
+}
+
+// Init sync UI
+function initSyncUI() {
+    if (getToken()) {
+        document.getElementById('sync-btn').style.display = 'flex';
+        document.getElementById('pull-btn').style.display = 'flex';
+        const gistId = getGistId();
+        if (gistId) {
+            const el = document.getElementById('gist-id-display');
+            if (el) el.innerText = `Gist ID: ${gistId}`;
+            pullFromGist();
+        } else {
+            updateSyncStatus('configured');
+        }
+    }
+}
+
+// --- RENDER ---
+function render() {
+    const app = document.getElementById('app');
+    const shown = filter === 'All' ? skills : skills.filter(s => s.cat === filter);
+    const avg = skills.length ? Math.round(skills.reduce((a,b)=>a+b.pct,0)/skills.length) : 0;
+
+    app.innerHTML = `
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-label">Overall Progress</div><div class="stat-value">${avg}%</div></div>
+            <div class="stat-card"><div class="stat-label">Topics</div><div class="stat-value">${skills.length}</div></div>
+            <div class="stat-card"><div class="stat-label">Done</div><div class="stat-value">${skills.filter(s=>s.pct===100).length}</div></div>
+        </div>
+
+        <div class="bar-wrap">
+            <div style="display:flex;justify-content:space-between;font-weight:600;font-size:0.85rem;"><span>Your Road to Mastery</span><span>${avg}%</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${avg}%"></div></div>
+        </div>
+
+        <div class="cats">${CATS.map(c=>`<div class="cat-pill ${filter===c?'active':''}" onclick="setFilter('${c}')">${c}</div>`).join('')}</div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+            <h2 style="font-size:1.1rem;">${filter} Topics</h2>
+            <button class="btn-add-res" onclick="openModal()">+ New Topic</button>
+        </div>
+
+        <div class="skill-list">
+            ${shown.map(s => `
+                <div class="skill-card">
+                    <div class="skill-main" onclick="toggleExpand(${s.id})">
+                        <div class="ring-wrap">
+                            <svg viewBox="0 0 44 44">
+                                <circle class="ring-bg" cx="22" cy="22" r="18"/>
+                                <circle class="ring-fg" cx="22" cy="22" r="18" stroke="${CAT_COLORS[s.cat]||'#10b981'}" stroke-dasharray="113.1" stroke-dashoffset="${113.1-(s.pct/100)*113.1}"/>
+                            </svg>
+                            <span class="ring-pct">${s.pct}%</span>
+                        </div>
+                        <div class="skill-info">
+                            <div class="skill-name">${s.name}</div>
+                            <div><span class="tag">${s.cat}</span><span class="tag">${s.priority}</span></div>
+                        </div>
+                        <div onclick="event.stopPropagation()">
+                            <button class="btn-action" onclick="adj(${s.id},-10)">−</button>
+                            <button class="btn-action" onclick="adj(${s.id},10)">+</button>
+                            <button class="btn-action" style="border:none;color:#ef4444" onclick="del(${s.id})">×</button>
+                        </div>
+                    </div>
+                    ${expanded.has(s.id) ? `
+                        <div class="skill-detail">
+                            <span class="detail-label">Study Notes</span>
+                            <textarea class="notes-area" rows="3" onchange="updateNotes(${s.id},this.value)" placeholder="Add concepts or solutions...">${s.notes||''}</textarea>
+                            <span class="detail-label">Resources</span>
+                            <div id="res-list-${s.id}">
+                                ${(s.resources||[]).map((r,i)=>`
+                                    <div class="resource-row">
+                                        <a href="${r.url}" target="_blank" class="resource-link">🔗 ${r.label}</a>
+                                        <button style="background:none;border:none;color:var(--text-dim);cursor:pointer" onclick="delRes(${s.id},${i})">×</button>
+                                    </div>`).join('')}
+                            </div>
+                            <div class="add-res-box">
+                                <input type="text" id="res-label-${s.id}" class="res-input" placeholder="Label">
+                                <input type="text" id="res-url-${s.id}" class="res-input" placeholder="URL">
+                                <button class="btn-add-res" onclick="addRes(${s.id})">Add</button>
+                            </div>
+                            <div style="margin-top:1.5rem;display:flex;align-items:center;gap:10px;">
+                                <input type="range" style="flex:1" min="0" max="100" step="5" value="${s.pct}" oninput="setPct(${s.id},+this.value)">
+                                <span style="font-size:0.75rem;font-weight:600;color:var(--text-dim);min-width:36px">${s.pct}%</span>
+                            </div>
+                        </div>
+                    `:''}
+                </div>`).join('')}
+        </div>
+
+        ${showModal ? `
+            <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                <div class="modal">
+                    <h2>Add Topic</h2>
+                    <div class="field"><label>Topic Name</label><input type="text" id="f-name"></div>
+                    <div class="field"><label>Category</label><select id="f-cat">${CATS.filter(c=>c!=='All').map(c=>`<option>${c}</option>`).join('')}</select></div>
+                    <div class="field"><label>Priority</label><select id="f-pri"><option>High</option><option>Medium</option><option>Low</option></select></div>
+                    <div class="modal-btns">
+                        <button onclick="closeModal()" style="background:none;border:none;color:var(--text-dim);cursor:pointer">Cancel</button>
+                        <button class="btn-add-res" onclick="saveNew()">Create</button>
+                    </div>
+                </div>
+            </div>`:''}
+    `;
+}
+
+// --- HANDLERS ---
+window.setFilter = c => { filter=c; render(); };
+window.toggleExpand = id => { expanded.has(id)?expanded.delete(id):expanded.add(id); render(); };
+window.adj = (id,v) => { const s=skills.find(x=>x.id===id); if(s){ s.pct=Math.max(0,Math.min(100,s.pct+v)); saveAndSync(); render(); } };
+window.setPct = (id,v) => { const s=skills.find(x=>x.id===id); if(s){ s.pct=v; saveAndSync(); render(); } };
+window.updateNotes = (id,v) => { const s=skills.find(x=>x.id===id); if(s){ s.notes=v; saveAndSync(); } };
+window.del = id => { if(confirm('Delete permanently?')){ skills=skills.filter(x=>x.id!==id); saveAndSync(); render(); } };
+window.addRes = id => {
+    const label=document.getElementById(`res-label-${id}`).value.trim();
+    const url=document.getElementById(`res-url-${id}`).value.trim();
+    if(!label||!url) return;
+    const s=skills.find(x=>x.id===id);
+    if(s){ if(!s.resources)s.resources=[]; s.resources.push({label,url}); saveAndSync(); render(); }
+};
+window.delRes = (id,i) => { const s=skills.find(x=>x.id===id); if(s){ s.resources.splice(i,1); saveAndSync(); render(); } };
+window.openModal = () => { showModal=true; render(); };
+window.closeModal = () => { showModal=false; render(); };
+window.saveNew = () => {
+    const name=document.getElementById('f-name').value.trim();
+    if(!name) return;
+    skills.push({id:Date.now(), name, cat:document.getElementById('f-cat').value, priority:document.getElementById('f-pri').value, pct:0, notes:'', resources:[]});
+    saveAndSync(); closeModal();
+};
+
+initSyncUI();
+render();
+</script>
+</body>
+</html>
