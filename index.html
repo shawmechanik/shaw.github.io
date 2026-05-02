@@ -98,7 +98,7 @@
     <div class="sync-banner">
         <div class="sync-top">
             <div class="sync-info">
-                <strong>Cloud Sync</strong> — Seamless across desktop & mobile
+                <strong>Cloud Sync</strong> — Cross-device backup via Gist
                 <div class="sync-status" id="sync-status-text">
                     <span class="status-dot dot-yellow"></span>Not configured
                 </div>
@@ -112,17 +112,17 @@
         </div>
         <div class="sync-setup" id="sync-setup-panel">
             <p>
-                <strong>Cross-Device Setup Guide:</strong><br>
-                • On <strong>Device 1:</strong> Enter Token, leave Gist ID empty, click <strong>Save</strong>. Copy the new Gist ID.<br>
-                • On <strong>Device 2:</strong> Enter Token, paste that same Gist ID, click <strong>Save</strong>.
+                <strong>Setup Cloud Linking:</strong><br>
+                • On your <strong>First Device</strong>: Enter your GitHub token (with <strong>gist</strong> permission checked), leave Gist ID blank, and click Save.<br>
+                • On your <strong>Second Device</strong>: Enter the exact same Token, paste the new Gist ID generated below, and click Save.
             </p>
             <div class="token-row">
                 <input type="password" id="gh-token-input" class="token-input" placeholder="Personal Access Token (ghp_...)">
-                <input type="text" id="gh-gist-input" class="token-input" placeholder="Gist ID (Optional)">
+                <input type="text" id="gh-gist-input" class="token-input" placeholder="Gist ID (Optional for Device 2)">
                 <button class="btn-add-res" onclick="saveCredentials()">Save Credentials</button>
-                <button class="btn-utility" onclick="clearCredentials()" style="color:#ef4444">Disconnect</button>
+                <button class="btn-utility" onclick="clearCredentials()" style="color:#ef4444">Clear</button>
             </div>
-            <p id="gist-id-display" style="margin-top:8px; font-family:monospace; font-size:0.75rem; font-weight:700; color:var(--accent)"></p>
+            <p id="gist-id-display" style="margin-top:8px; font-family:monospace; font-size:0.75rem; font-weight: 700; color:var(--accent)"></p>
         </div>
     </div>
 
@@ -158,7 +158,7 @@ if (document.getElementById('theme-icon')) document.getElementById('theme-icon')
 // --- SAVE LOCAL ---
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(skills)); }
 
-// --- DATA SYNC BACKEND (GitHub REST API via Bearer Header) ---
+// --- CLOUD SYNC ---
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function getGistId() { return localStorage.getItem(GIST_ID_KEY); }
 
@@ -174,9 +174,9 @@ function saveCredentials() {
         localStorage.setItem(GIST_ID_KEY, g);
         document.getElementById('gist-id-display').innerText = `Linked to Gist ID: ${g}`;
         updateSyncStatus('configured');
-        pullFromGist(); // Auto-load cloud data immediately
+        pullFromGist(); // Auto-load cloud data instantly
     } else {
-        syncNow(); // Creates a Gist instantly
+        syncNow(); // Pushes your first load and directly builds a cloud file
     }
 
     document.getElementById('gh-token-input').value = '';
@@ -199,8 +199,8 @@ function updateSyncStatus(state, msg) {
     const el = document.getElementById('sync-status-text');
     if (!el) return;
     const states = {
-        'not-configured': `<span class="status-dot dot-yellow"></span>Unlinked`,
-        'configured':     `<span class="status-dot dot-yellow"></span>Token saved, click Pull or Push`,
+        'not-configured': `<span class="status-dot dot-yellow"></span>Not configured`,
+        'configured':     `<span class="status-dot dot-yellow"></span>Credentials saved, click Push or Pull`,
         'syncing':        `<span class="spinner"></span>&nbsp;Syncing...`,
         'success':        `<span class="status-dot dot-green"></span>Updated ${new Date().toLocaleTimeString()}`,
         'error':          `<span class="status-dot dot-red"></span>Error: ${msg || 'Verify token & permissions'}`
@@ -291,7 +291,7 @@ function saveAndSync() {
     save();
     if (getToken()) {
         clearTimeout(syncTimer);
-        syncTimer = setTimeout(syncNow, 1500); // 1.5s delay to save calls
+        syncTimer = setTimeout(syncNow, 1500); // Trigger save 1.5s after editing
     }
 }
 
