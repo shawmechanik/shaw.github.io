@@ -95,9 +95,13 @@
                 4. Click Save → then Push once from laptop → Pull on mobile
             </p>
             <div class="token-row">
-                <input type="password" id="token-input" class="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                <input type="password" id="token-input" class="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (GitHub token)">
                 <button class="btn-add-res" onclick="saveToken()">Save Token</button>
                 <button class="btn-utility" onclick="clearAll()" style="color:#ef4444">Clear</button>
+            </div>
+            <div class="token-row" style="margin-top:8px;">
+                <input type="text" id="gist-id-input" class="token-input" placeholder="Gist ID — paste from your other device">
+                <button class="btn-add-res" onclick="saveGistId()">Save Gist ID</button>
             </div>
             <div id="gist-info" style="font-size:0.75rem;font-family:monospace;margin-top:8px;color:var(--text-dim);"></div>
         </div>
@@ -162,6 +166,15 @@ function saveToken() {
     document.getElementById('token-input').value = '';
     setStatus('✅ Token saved — click Push from laptop, Pull on mobile');
     alert('Token saved! Now click ☁️ Push on the device that has your data, then 📥 Pull on the other device.');
+}
+
+function saveGistId() {
+    const g = document.getElementById('gist-id-input').value.trim();
+    if (!g) { alert('Paste the Gist ID first'); return; }
+    localStorage.setItem(GK, g);
+    document.getElementById('gist-id-input').value = '';
+    updateGistInfo();
+    alert('Gist ID saved! Now tap Pull to get your data.');
 }
 
 function clearAll() {
